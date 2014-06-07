@@ -1,0 +1,11 @@
+{
+  "name": "timelapse.io",
+  "dependencies": {
+    "q": "1.0.1",
+    "q-io": "1.11.1",
+    "lodash": "2.4.1",
+    "inquirer": "0.5.0",
+    "home-dir": "0.1.2",
+    "exif": "0.4.0"
+  }
+}
