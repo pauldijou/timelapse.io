@@ -99,8 +99,7 @@ module.exports.analyse = function (files) {
 
 var write = module.exports.write = function (output, start, end) {
   var timelapse = workspace.getTimelapse(),
-      filesToProcess = timelapse.files.slice(start, end),
-      output = workspace.getOutputFile();
+      filesToProcess = timelapse.files.slice(start, end);
 
   start = start || 0;
   end = end || timelapse.files.length;
@@ -108,7 +107,7 @@ var write = module.exports.write = function (output, start, end) {
   return prompts.overwrite(output).then(home.clean).then(function () {
     log.info('Copying and renaming files in tmp directory...');
     return q.all(_.map(filesToProcess, function (file, index) {
-      return fs.copy(file.path, path.join(tmpDir, (index+1) + timelapse.extension));
+      return fs.copy(file.path, path.join(home.paths.tmp, (index+1) + timelapse.extension));
     }));
   }).then(function () {
     var args = [
@@ -117,7 +116,7 @@ var write = module.exports.write = function (output, start, end) {
       '-framerate',
       '30',
       '-i',
-      '"' + path.join(tmpDir, '%d' + timelapse.extension) + '"',
+      '"' + path.join(home.paths.tmp, '%d' + timelapse.extension) + '"',
       // '"' + ('%d' + timelapse.extension) + '"',
       // '-filter:v',
       // 'scale=-1:1080',

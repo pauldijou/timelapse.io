@@ -6,6 +6,30 @@ var q = require('q'),
     log = require('./log'),
     workspace = require('./workspace');
 
+var toExif = module.exports.toExif = function (filePath) {
+  var defer = q.defer();
+  try {
+    new ExifImage({ image : filePath }, function (err, exifData) {
+      if (err) {
+        log.warn('couldn\'t read EXIF data from "' + filePath + '"');
+        defer.reject(err);
+      } else {
+        defer.resolve({
+          path: filePath,
+          width: exifData.exif.ExifImageWidth,
+          height: exifData.exif.ExifImageHeight,
+          created: utils.exifDate(exifData.exif.CreateDate),
+          dateTimeOriginal: utils.exifDate(exifData.exif.DateTimeOriginal),
+          hardware: exifData.image.Make + '---' + exifData.image.Model
+        });
+      }
+    });
+  } catch (error) {
+    defer.reject(err);
+  }
+  return defer.promise;
+};
+
 module.exports.read = function getFiles(inputDir) {
   var isRoot = !!inputDir;
   inputDir = inputDir || workspace.getInput();
@@ -23,29 +47,7 @@ module.exports.read = function getFiles(inputDir) {
       var filePath = path.join(inputDir, fileName);
       return fs.stat(filePath).then(function (stats) {
         if (stats.isFile()) {
-          var defer = q.defer();
-          try {
-            new ExifImage({ image : filePath }, function (err, exifData) {
-              if (err) {
-                log.warn('couldn\'t read EXIF data from "' + filePath + '"');
-                if (index === total-1) log.json(err);
-                if (index === total-1) log.json(exifData);
-                defer.reject(err);
-              } else {
-                defer.resolve({
-                  path: filePath,
-                  width: exifData.exif.ExifImageWidth,
-                  height: exifData.exif.ExifImageHeight,
-                  created: exifDate(exifData.exif.CreateDate),
-                  dateTimeOriginal: exifDate(exifData.exif.DateTimeOriginal),
-                  hardware: exifData.image.Make + '---' + exifData.image.Model
-                });
-              }
-            });
-          } catch (error) {
-            defer.reject(err);
-          }
-          return defer.promise;
+          return toExif(filePath);
         } else if (stats.isDirectory()) {
           return getFiles(filePath);
         } else {

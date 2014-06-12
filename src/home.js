@@ -10,6 +10,7 @@ var q = require('q'),
     fs = require('q-io/fs'),
     path = require('path'),
     _ = require('lodash'),
+    homeDir = require('home-dir').directory,
     log = require('./log'),
     config,
     defaultConfig = {

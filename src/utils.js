@@ -39,3 +39,8 @@ module.exports.catchError = function (type, error) {
 
   return defer.promise;
 };
+
+module.exports.exifDate = function (dirtyDate) {
+  var parts = dirtyDate.split(' ');
+  return new Date(parts[0].replace(/:/g, '-') + 'T' + parts[1] + 'Z');
+};
