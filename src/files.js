@@ -1,38 +1,12 @@
-#!/usr/bin/env node
-
 var q = require('q'),
     fs = require('q-io/fs'),
     _ = require('lodash'),
     path = require('path'),
-    ExifImage = require('exif').ExifImage;
-    home = require('./src/home'),
-    prompts = require('./src/prompts'),
-    files = require('./src/files'),
-    log = require('./src/log'),
-    timelapse = require('./src/timelapse');
+    ExifImage = require('exif').ExifImage,
+    log = require('./log'),
+    workspace = require('./workspace');
 
-var generateTimelapse = function () {
-  return prompts.timelapseBoundaries().then(timelapse.generate);
-}
-
-var timelapseLoop = function () { 
-  return prompts.timelapse()
-    .then(prompts.preview)
-    .then(function (withPreview) {
-      if (withPreview === true) {
-        return timelapse.generatePreview().then(prompts.previewOk).then(function (previewOk) {
-          if (previewOk === true) {
-            return generateTimelapse();
-          }
-        });
-      } else {
-        return generateTimelapse();
-      }
-    })
-    .then(timelapseLoop);
-};
-
-var getFilesTer = function getFilesTerF(inputDir) {
+module.exports.read = function getFiles(inputDir) {
   var isRoot = !!inputDir;
   inputDir = inputDir || workspace.getInput();
 
@@ -73,7 +47,7 @@ var getFilesTer = function getFilesTerF(inputDir) {
           }
           return defer.promise;
         } else if (stats.isDirectory()) {
-          return getFilesTerF(filePath);
+          return getFiles(filePath);
         } else {
           return q([]);
         }
@@ -90,20 +64,3 @@ var getFilesTer = function getFilesTerF(inputDir) {
     });
   });
 };
-
-
-home.check()
-  .then(prompts.workspace)
-  .then(function () { return undefined; })
-  // .then(files.read)
-  .then(getFilesTer)
-  .then(timelapse.analyse)
-  .then(timelapseLoop)
-  .catch(function (error) {
-    console.log(error);
-  })
-  .finally(function () {
-    console.log('Last clean...');
-    home.clean();
-  })
-  .done();
