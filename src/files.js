@@ -11,7 +11,7 @@ var toExif = module.exports.toExif = function (filePath) {
   try {
     new ExifImage({ image : filePath }, function (err, exifData) {
       if (err) {
-        log.warn('couldn\'t read EXIF data from "' + filePath + '"');
+        log.warn('couldn\'t read EXIF data from "' + filePath + '", reason: ' + err);
         defer.reject(err);
       } else {
         defer.resolve({
@@ -30,39 +30,51 @@ var toExif = module.exports.toExif = function (filePath) {
   return defer.promise;
 };
 
-module.exports.read = function getFiles(inputDir) {
-  var isRoot = !!inputDir;
-  inputDir = inputDir || workspace.getInput();
-
-  return fs.list(inputDir).then(function (files) {
+module.exports.read = function getFiles() {
+  // Get a flat array of all files on workspace
+  return fs.listTree(workspace.getInput(), function (path, stat) {
+    return stat.isFile();
+  })
+  // Chunk files so we don't open too many of them at the same time
+  .then(function (files) {
     var total = files.length;
+    log.info('Start reading ' + total + ' files and/or directories and extracting EXIF infos (can take a few '+ (total < 500 ? 'seconds' : 'minutes') +')...');
 
-    if (isRoot) {
-      log.info('Start reading ' + total + ' files and/or directories and extracting EXIF infos (can take a few '+ (total < 300 ? 'seconds' : 'minutes') +')...');
-    } else {
-      log.info('Found a directory, importing ' + total + ' more files and extracting EXIF infos (can take a few '+ (total < 300 ? 'seconds' : 'minutes') +')...');
+    var chunkSize = 500;
+    if (total < 500) {
+      chunkSize = 50;
+    } else if (total < 1000) {
+      chunkSize = 100;
+    } else if (total < 2500) {
+      chunkSize = 250;
     }
 
-    return q.allSettled(_.map(files, function (fileName, index) {
-      var filePath = path.join(inputDir, fileName);
-      return fs.stat(filePath).then(function (stats) {
-        if (stats.isFile()) {
-          return toExif(filePath);
-        } else if (stats.isDirectory()) {
-          return getFiles(filePath);
-        } else {
-          return q([]);
-        }
-      });
-    })).then(function (promises) {
-      log.info('Removing invalid files and ordering by created date...');
-      return _(promises).filter(function (promise) {
-        return promise.state === 'fulfilled';
-      }).map(function (promise) {
-        return promise.value;
-      }).flatten().sortBy(function (file) {
-        return file.created.getTime();
-      }).value();
-    });
+    var result = q([]);
+
+    for (var i = 0; i < total; i += chunkSize) {
+      (function (chunk, progress) {
+        console.log("Analyzing files... " + Math.ceil(100 * progress) + "%");
+        result = result.then(function (values) {
+          return q.allSettled(_.map(chunk, function (filePath) {
+            return toExif(filePath);
+          })).then(function (exifValues) {
+            return values.concat(exifValues);
+          });
+        });
+      })(files.slice(i, i + chunkSize), i / total);
+    }
+
+    return result;
+  })
+  // Remove failed promises (for example, couldn't read EXIF metadata)
+  .then(function (promises) {
+    log.info('Removing invalid files and ordering by created date...');
+    return _(promises).filter(function (promise) {
+      return promise.state === 'fulfilled';
+    }).map(function (promise) {
+      return promise.value;
+    }).flatten().sortBy(function (file) {
+      return file.created.getTime();
+    }).value();
   });
 };

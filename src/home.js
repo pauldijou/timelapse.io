@@ -36,11 +36,23 @@ var createTmp = function () {
 
 var check = module.exports.check = function ()  {
   return fs.isDirectory(paths.home)
-    .catch(createHome)
+    .then(function (isHomeDirectory) {
+      if (!isHomeDirectory) {
+        return createHome();
+      } else {
+        return true;
+      }
+    }, createHome)
     .then(function () {
       return fs.isDirectory(paths.tmp);
     })
-    .catch(createTmp)
+    .then(function (isTmpDirectory) {
+      if (!isTmpDirectory) {
+        return createTmp();
+      } else {
+        return true;
+      }
+    }, createTmp)
     .then(function () {
       return fs.read(paths.config).then(function (content) {
         config = _.defaults(JSON.parse(content), defaultConfig);
