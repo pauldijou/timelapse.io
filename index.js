@@ -10,7 +10,7 @@ var generateTimelapse = function () {
   return prompts.timelapseBoundaries().then(timelapse.generate);
 }
 
-var timelapseLoop = function () { 
+var timelapseLoop = function () {
   return prompts.timelapse()
     .then(prompts.preview)
     .then(function (withPreview) {
@@ -34,6 +34,7 @@ home.check()
   .then(timelapse.analyse)
   .then(timelapseLoop)
   .catch(function (error) {
+    console.log('ERROR');
     console.log(error);
   })
   .finally(function () {

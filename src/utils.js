@@ -1,4 +1,5 @@
-var q = require('q');
+var q = require('q'),
+    _ = require('lodash');
 
 // Round a number by a number of digits
 module.exports.round = function (value, digits) {
@@ -43,4 +44,42 @@ module.exports.catchError = function (type, error) {
 module.exports.exifDate = function (dirtyDate) {
   var parts = dirtyDate.split(' ');
   return new Date(parts[0].replace(/:/g, '-') + 'T' + parts[1] + 'Z');
+};
+
+var chunkSize = module.exports.chunkSize = function chunkSize(total) {
+  if (total < 500) {
+    return 50;
+  } else if (total < 1000) {
+    return 100;
+  } else if (total < 2500) {
+    return 250;
+  } else {
+    return 500;
+  }
+};
+
+module.exports.chunkMap = function (values, fn) {
+  var total = values.length;
+  var chunkLength = chunkSize(total);
+  var result = q([]);
+
+  for (var i = 0; i < total; i += chunkLength) {
+    (function (chunk, progress) {
+      console.log("Progress... " + Math.ceil(100 * progress) + "%");
+      result = result.then(function (promiseValues) {
+        return q.allSettled(_.map(chunk, fn)).then(function (chunkValues) {
+          return promiseValues.concat(chunkValues);
+        });
+      });
+    })(values.slice(i, i + chunkLength), i / total);
+  }
+
+  return result.then(function (promises) {
+    log.info('Removing invalid values...');
+    return _(promises).filter(function (promise) {
+      return promise.state === 'fulfilled';
+    }).map(function (promise) {
+      return promise.value;
+    }).value();
+  });;
 };

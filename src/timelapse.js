@@ -98,17 +98,28 @@ module.exports.analyse = function (files) {
 };
 
 var write = module.exports.write = function (output, start, end) {
-  var timelapse = workspace.getTimelapse(),
-      filesToProcess = timelapse.files.slice(start, end);
-
+  var timelapse = workspace.getTimelapse();
   start = start || 0;
   end = end || timelapse.files.length;
 
+  var filesToProcess = timelapse.files.slice(start, end);
+
   return prompts.overwrite(output).then(home.clean).then(function () {
-    log.info('Copying and renaming files in tmp directory...');
-    return q.all(_.map(filesToProcess, function (file, index) {
-      return fs.copy(file.path, path.join(home.paths.tmp, (index+1) + timelapse.extension));
-    }));
+    log.info('Copying and renaming ' + filesToProcess.length + ' files in tmp directory...');
+
+    _.forEach(filesToProcess, function (file, index) {
+      file.copyDestination = path.join(home.paths.tmp, (index+1) + timelapse.extension);
+    });
+
+    return utils.chunkMap(filesToProcess, function (file) {
+      console.log('Copying:', file.path, "->", file.copyDestination);
+      return fs.copy(file.path, file.copyDestination);
+    });
+
+    // return q.all(_.map(filesToProcess, function (file, index) {
+    //   console.log('Copying:', (index+1) + timelapse.extension, "<-", file.path);
+    //   return fs.copy(file.path, path.join(home.paths.tmp, (index+1) + timelapse.extension));
+    // }));
   }).then(function () {
     var args = [
       '-f',

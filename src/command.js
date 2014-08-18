@@ -14,9 +14,10 @@ module.exports.run = function (command) {
 
   // runner.on('close', function (code) {
   //   console.log('child process exited with code ' + code);
-  //   defer.resolve(code);  
+  //   defer.resolve(code);
   // });
 
+  console.log('Running command [' + command + ']');
   exec(command, function (err, stdout, stderr) {
     log.info(stdout);
     log.info(stderr);
